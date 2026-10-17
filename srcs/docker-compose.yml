@@ -1,0 +1,87 @@
+services:
+  mariadb:
+    build:
+      context: ./requirements/mariadb
+      args:
+        MYSQL_PORT: ${MYSQL_PORT}
+    image: mariadb:inception
+    container_name: mariadb
+    env_file: .env
+    secrets:
+      - db_password
+      - db_root_password
+    volumes:
+      - mariadb:/var/lib/mysql
+    networks:
+      - inception
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "--silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  wordpress:
+    build:
+      context: ./requirements/wordpress
+      args:
+        WP_PORT: ${WP_PORT}
+    image: wordpress:inception
+    container_name: wordpress
+    env_file: .env
+    secrets:
+      - db_password
+      - credentials
+    volumes:
+      - wordpress:/var/www/html
+    networks:
+      - inception
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: ./requirements/nginx
+      args:
+        NGINX_PORT: ${NGINX_PORT}
+    image: nginx:inception
+    container_name: nginx
+    env_file: .env
+    ports:
+      - "${NGINX_PORT}:${NGINX_PORT}"
+    volumes:
+      - wordpress:/var/www/html:ro
+    networks:
+      - inception
+    depends_on:
+      - wordpress
+    restart: unless-stopped
+
+volumes:
+  mariadb:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH}/mariadb
+  wordpress:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH}/wordpress
+
+networks:
+  inception:
+    driver: bridge
+
+secrets:
+  db_password:
+    file: ../secrets/db_password.txt
+  db_root_password:
+    file: ../secrets/db_root_password.txt
+  credentials:
+    file: ../secrets/credentials.txt

@@ -1,0 +1,12 @@
+# Loaded after Alpine's mariadb-server.cnf (alphabetical order), so these values win.
+[mysqld]
+user            = mysql
+datadir         = /var/lib/mysql
+socket          = /run/mysqld/mysqld.sock
+# Alpine disables TCP by default; WordPress connects over the docker network.
+# The port is not set here: init.sh passes --port from MYSQL_PORT (.env)
+skip-networking = 0
+bind-address    = 0.0.0.0
+
+[client]
+socket          = /run/mysqld/mysqld.sock

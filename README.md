@@ -1,9 +1,19 @@
 *This project has been created as part of the 42 curriculum by aabi-mou.*
 
 # Outline
+1. [Description](#description)
+2. [Docker Usage and Design Choices](#docker-usage-and-design-choices)
+3. [Virtual Machines vs Docker](#virtual-machines-vs-docker)
+4. [Secrets vs Environment Variables](#secrets-vs-environment-variables)
+5. [Docker Network vs Host Network](#docker-network-vs-host-network)
+6. [Docker Volumes vs Bind Mounts](#docker-volumes-vs-bind-mounts)
+7. [Instructions](#instructions)
+8. [AI Usage](#ai-usage)
+9. [Resources](#resources)
 
 
 # Description
+
 ![Requirement](assets/requirement.png)
 
 ## Docker Usage and Design Choices
@@ -11,6 +21,7 @@
 - Database: MariaDB. A volume is needed to persist data even if container is deleted.
 - PHP-FPM (stands for PHP FastCGI Process Manager) is a service that runs PHP code and returns the results to a web server (NGINX here).
 - WordPress is a CMS(content management system) that let's anyone build websites without coding knowledge.
+
 
 ## Virtual Machines vs Docker
 Both add an abstraction layer between applications and the physical machine, but at different levels.
@@ -42,9 +53,44 @@ A **bind mount** maps a specific path on the host (e.g. `/home/user/data`) strai
 
 # Instructions
 
+### Prerequisites
+- Docker Engine with the Docker Compose plugin (Docker Desktop on Windows).
+- `make` (Linux VM), used once the Makefile is in place.
+
+### Configuration
+1. Copy `srcs/.env.example` to `srcs/.env` and fill in the values (non-secret settings only, `KEY=value` without spaces).
+2. Create the `secrets/` folder at the repository root with these files (all ignored by git):
+
+| File | Content |
+|---|---|
+| `db_password.txt` | Password of `MYSQL_USER`, value only |
+| `db_root_password.txt` | MariaDB root password, value only |
+| `credentials.txt` | `WP_ADMIN_PASSWORD=...` and `WP_USER_PASSWORD=...`, one per line |
+
+Avoid `'` and `\` in passwords: they are inserted into SQL statements.
+
+### Running the MariaDB service
+On the Linux VM, create the data folders once:
+```sh
+mkdir -p /home/aabi-mou/data/mariadb /home/aabi-mou/data/wordpress
+```
+On Windows with Docker Desktop, the path is resolved inside Docker Desktop's Linux VM, so create it from a container:
+```sh
+docker run --rm -v /home:/host-home alpine:3.23 mkdir -p /host-home/aabi-mou/data/mariadb /host-home/aabi-mou/data/wordpress
+```
+Then, from the repository root:
+```sh
+docker compose -f srcs/docker-compose.yml up -d --build   # build and start
+docker compose -f srcs/docker-compose.yml ps              # wait for "Up (healthy)"
+docker logs mariadb                                       # "ready for connections"
+docker exec -it mariadb mariadb -u root -p                # SQL shell (root password)
+docker compose -f srcs/docker-compose.yml down            # stop, data is kept
+```
+
 
 # AI Usage
 AI was used in this project as a learning weapon.
+- MariaDB service: Claude Code helped plan the service, write the Dockerfile, config and entrypoint script, and explain each part (build vs run time, PID 1, bootstrap SQL). Every file was reviewed and tested manually before being kept.
 
 
 # Resources
