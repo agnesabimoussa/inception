@@ -14,6 +14,14 @@
 
 # Description
 
+Inception sets up a small web infrastructure with Docker Compose inside a virtual machine: a WordPress website served over HTTPS. Each service runs in its own container, built from its own Dockerfile on Alpine Linux. No ready-made images are used.
+
+- **NGINX**: the only entry point, HTTPS on port 443 with TLSv1.2/TLSv1.3 only.
+- **WordPress + PHP-FPM**: runs the PHP code; NGINX forwards PHP requests to it over FastCGI on port 9000.
+- **MariaDB**: stores the WordPress database; WordPress connects to it on port 3306.
+
+The containers communicate over a dedicated bridge network, restart automatically after a crash, and keep their data in two named volumes stored in `/home/aabi-mou/data` on the host.
+
 ![Requirement](assets/requirement.png)
 
 ## Docker Usage and Design Choices
@@ -21,6 +29,26 @@
 - Database: MariaDB. A volume is needed to persist data even if container is deleted.
 - PHP-FPM (stands for PHP FastCGI Process Manager) is a service that runs PHP code and returns the results to a web server (NGINX here).
 - WordPress is a CMS(content management system) that let's anyone build websites without coding knowledge.
+- Base image: `alpine:3.23`, the penultimate stable Alpine release, as required. Images are tagged `<service>:inception`; the `latest` tag is never used.
+- One service per container: each entrypoint script prepares its service on the first run, then `exec`s the daemon in the foreground so it becomes PID 1. No `tail -f` or infinite loops.
+- Configuration: every setting comes from `srcs/.env`. Passwords are Docker secrets read from `/run/secrets/`; they never appear in images or environment variables.
+- TLS: NGINX generates a self-signed certificate for `aabi-mou.42.fr` at startup. Plain HTTP is not served.
+- Startup order: a MariaDB healthcheck (TCP ping as the WordPress user) makes WordPress wait until the database accepts connections.
+- Storage: named volumes using the `local` driver with bind options, so Docker manages them by name while the data lives in `DATA_PATH` on the host.
+
+Project sources:
+```
+.
+├── Makefile                 # builds and manages the stack through docker compose
+├── secrets/                 # passwords, one file per secret (git-ignored)
+└── srcs/
+    ├── .env                 # configuration (git-ignored), template: .env.example
+    ├── docker-compose.yml   # services, network, volumes and secrets
+    └── requirements/
+        ├── mariadb/         # Dockerfile, conf/zz-inception.cnf, tools/init.sh
+        ├── wordpress/       # Dockerfile, conf/www.conf, conf/php.ini, tools/setup.sh
+        └── nginx/           # Dockerfile, conf/inception.conf.template, tools/entrypoint.sh
+```
 
 
 ## Virtual Machines vs Docker
@@ -54,8 +82,8 @@ A **bind mount** maps a specific path on the host (e.g. `/home/user/data`) strai
 # Instructions
 
 ### Prerequisites
-- Docker Engine with the Docker Compose plugin (Docker Desktop on Windows).
-- `make` (Linux VM), used once the Makefile is in place.
+- A Linux virtual machine with Docker Engine, the Docker Compose plugin and `make`.
+- The domain pointing to the local machine: add `127.0.0.1 aabi-mou.42.fr` to `/etc/hosts`.
 
 ### Configuration
 1. Copy `srcs/.env.example` to `srcs/.env` and fill in the values (non-secret settings only, `KEY=value` without spaces).
@@ -69,30 +97,38 @@ A **bind mount** maps a specific path on the host (e.g. `/home/user/data`) strai
 
 Avoid `'` and `\` in passwords: they are inserted into SQL statements.
 
-### Running the MariaDB service
-On the Linux VM, create the data folders once:
+### Usage
+From the repository root:
 ```sh
-mkdir -p /home/aabi-mou/data/mariadb /home/aabi-mou/data/wordpress
+make
 ```
-On Windows with Docker Desktop, the path is resolved inside Docker Desktop's Linux VM, so create it from a container:
-```sh
-docker run --rm -v /home:/host-home alpine:3.23 mkdir -p /host-home/aabi-mou/data/mariadb /host-home/aabi-mou/data/wordpress
-```
-Then, from the repository root:
-```sh
-docker compose -f srcs/docker-compose.yml up -d --build   # build and start
-docker compose -f srcs/docker-compose.yml ps              # wait for "Up (healthy)"
-docker logs mariadb                                       # "ready for connections"
-docker exec -it mariadb mariadb -u root -p                # SQL shell (root password)
-docker compose -f srcs/docker-compose.yml down            # stop, data is kept
-```
+The first start downloads and installs WordPress, which can take a few minutes. Then open https://aabi-mou.42.fr (accept the self-signed certificate warning). The administration panel is at https://aabi-mou.42.fr/wp-admin.
+
+| Command | Effect |
+|---|---|
+| `make` / `make up` | Check the configuration, create the data folders, build the images and start the containers |
+| `make ps` | Show the status of the containers |
+| `make logs` | Follow the logs of all services |
+| `make stop` / `make start` | Pause / resume the containers |
+| `make down` | Remove the containers and the network; data is kept |
+| `make clean` | `make down` and remove the project images |
+| `make fclean` | `make clean`, remove the volumes and delete all data in `DATA_PATH` |
+| `make re` | `make fclean` then `make` |
+
+See [USER_DOC.md](USER_DOC.md) for day-to-day use and [DEV_DOC.md](DEV_DOC.md) for setup and internals.
 
 
 # AI Usage
-AI was used in this project as a learning weapon.
-- MariaDB service: Claude Code helped plan the service, write the Dockerfile, config and entrypoint script, and explain each part (build vs run time, PID 1, bootstrap SQL). Every file was reviewed and tested manually before being kept.
-
+AI was used in this project for learning purposes only.
 
 # Resources
 - Docker docs: https://docs.docker.com/?uuid=93AB6D6A-89CE-4676-A763-4AF0BFD36D9C
 - Docker desktop Gordon AI
+- Dockerfile best practices: https://docs.docker.com/build/building/best-practices/
+- Docker Compose secrets: https://docs.docker.com/compose/how-tos/use-secrets/
+- Docker volumes: https://docs.docker.com/engine/storage/volumes/
+- Alpine Linux releases: https://alpinelinux.org/releases/
+- MariaDB documentation: https://mariadb.com/docs/
+- NGINX, configuring HTTPS servers: https://nginx.org/en/docs/http/configuring_https_servers.html
+- PHP-FPM configuration: https://www.php.net/manual/en/install.fpm.configuration.php
+- WP-CLI commands: https://developer.wordpress.org/cli/commands/

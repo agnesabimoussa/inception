@@ -6,7 +6,9 @@ RUN apk add --no-cache mariadb mariadb-client \
 
 COPY conf/zz-inception.cnf /etc/my.cnf.d/zz-inception.cnf
 COPY tools/init.sh /usr/local/bin/init.sh
-RUN chmod +x /usr/local/bin/init.sh
+# MariaDB ignores world-writable config files: force safe permissions
+RUN chmod 644 /etc/my.cnf.d/zz-inception.cnf \
+    && chmod +x /usr/local/bin/init.sh
 
 ARG MYSQL_PORT
 EXPOSE ${MYSQL_PORT}
