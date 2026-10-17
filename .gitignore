@@ -1,3 +1,4 @@
 secrets/
 srcs/.env
 en.subject.pdf
+.gitattributes
