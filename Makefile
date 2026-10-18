@@ -1,6 +1,7 @@
 COMPOSE   = docker compose -f srcs/docker-compose.yml
 ENV_FILE  = srcs/.env
-SECRETS   = secrets/db_password.txt secrets/db_root_password.txt secrets/credentials.txt
+SECRETS   = secrets/db_password.txt secrets/db_root_password.txt secrets/credentials.txt \
+            secrets/redis_password.txt secrets/ftp_password.txt
 DATA_PATH = $(shell grep '^DATA_PATH=' $(ENV_FILE) 2>/dev/null | cut -d= -f2-)
 
 all: up

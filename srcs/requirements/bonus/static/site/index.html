@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Byte Brief: tech news in a nutshell</title>
+    <meta name="description" content="A one-page static tech blog, built for the 42 Inception project.">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="site-header">
+        <h1 class="logo">Byte<span>Brief</span></h1>
+        <p class="tagline">Tech news, updates and releases, in a nutshell.</p>
+        <p class="notice">Sample content: these posts are fictional, written for the 42 Inception project.</p>
+        <nav class="tags" aria-label="Topics">
+            <a class="tag tag-ai" href="#ai">AI</a>
+            <a class="tag tag-hardware" href="#hardware">Hardware</a>
+            <a class="tag tag-open-source" href="#open-source">Open source</a>
+            <a class="tag tag-security" href="#security">Security</a>
+            <a class="tag tag-dev" href="#dev">Dev</a>
+        </nav>
+    </header>
+
+    <main>
+        <article id="roundup" class="post featured">
+            <p class="meta"><span class="tag tag-roundup">Weekly roundup</span> <time datetime="2026-10-18">October 18, 2026</time></p>
+            <h2>This week in tech: smaller models, faster chips, safer browsers</h2>
+            <p>A busy week. AI assistants keep moving onto our own devices, a new laptop chip promises all-day battery life, and browsers keep tightening their security defaults. Here is the short version of everything worth knowing.</p>
+        </article>
+
+        <article id="ai" class="post">
+            <p class="meta"><span class="tag tag-ai">AI</span> <time datetime="2026-10-16">October 16, 2026</time></p>
+            <h2>AI assistants move from the cloud to your laptop</h2>
+            <p>More assistants now run small language models directly on the device. Answers come faster, work offline, and private documents never leave the machine.</p>
+            <p>The trade-off: local models are smaller, so the hardest questions are still sent to the cloud.</p>
+        </article>
+
+        <article id="hardware" class="post">
+            <p class="meta"><span class="tag tag-hardware">Hardware</span> <time datetime="2026-10-14">October 14, 2026</time></p>
+            <h2>New laptop chip targets 24-hour battery life</h2>
+            <p>A new generation of ARM laptop processors pairs efficiency cores with a dedicated AI unit. Early reviews report a full day of work on one charge, with the fans almost never spinning.</p>
+        </article>
+
+        <article id="open-source" class="post">
+            <p class="meta"><span class="tag tag-open-source">Open source</span> <time datetime="2026-10-12">October 12, 2026</time></p>
+            <h2>A popular container tool reaches version 2.0</h2>
+            <p>The release brings faster image builds, smaller images by default and rootless mode out of the box. The maintainers thank more than 300 contributors, most of them volunteers.</p>
+        </article>
+
+        <article id="security" class="post">
+            <p class="meta"><span class="tag tag-security">Security</span> <time datetime="2026-10-09">October 9, 2026</time></p>
+            <h2>Browsers start blocking old TLS versions for good</h2>
+            <p>Major browsers now refuse connections that only offer TLS 1.0 or 1.1. Sites must support TLS 1.2 or 1.3, the same rule this project's NGINX already follows.</p>
+            <p>Tip: check your own site with <code>openssl s_client -connect example.com:443</code>.</p>
+        </article>
+
+        <article id="dev" class="post">
+            <p class="meta"><span class="tag tag-dev">Dev</span> <time datetime="2026-10-06">October 6, 2026</time></p>
+            <h2>Programming languages: what the latest releases bring</h2>
+            <p>This autumn's language updates focus on the same themes: safer memory handling, better error messages, and faster compile times. Small changes, but developers notice them every day.</p>
+        </article>
+    </main>
+
+    <footer class="site-footer">
+        <p>Built with plain HTML &amp; CSS, served by BusyBox httpd behind NGINX.</p>
+        <p><a href="/">Back to the WordPress site</a></p>
+    </footer>
+</body>
+</html>

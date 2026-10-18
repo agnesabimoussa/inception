@@ -1,0 +1,3 @@
+[Definition]
+# Bans and unbans appear in docker logs
+logtarget = STDOUT

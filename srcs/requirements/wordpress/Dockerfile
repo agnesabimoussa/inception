@@ -2,12 +2,13 @@ FROM alpine:3.23
 
 ARG WP_CLI_VERSION=2.12.0
 
-# PHP 8.4 + php-fpm + the extensions WordPress needs, and wp-cli to install it
+# PHP 8.4 + php-fpm + the extensions WordPress needs, and wp-cli to install it.
+# php84-pecl-redis: native Redis client used by the Redis Object Cache plugin (bonus)
 RUN apk add --no-cache \
         php84 php84-fpm php84-mysqli php84-phar php84-curl php84-mbstring \
         php84-openssl php84-xml php84-dom php84-zip php84-gd php84-iconv \
         php84-ctype php84-tokenizer php84-session php84-fileinfo php84-exif \
-        php84-intl curl \
+        php84-intl php84-pecl-redis curl \
     && ln -sf /usr/bin/php84 /usr/bin/php \
     && curl -fsSL -o /usr/local/bin/wp \
         "https://github.com/wp-cli/wp-cli/releases/download/v${WP_CLI_VERSION}/wp-cli-${WP_CLI_VERSION}.phar" \

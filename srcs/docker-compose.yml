@@ -34,12 +34,15 @@ services:
     secrets:
       - db_password
       - credentials
+      - redis_password
     volumes:
       - wordpress:/var/www/html
     networks:
       - inception
     depends_on:
       mariadb:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
 
@@ -55,10 +58,105 @@ services:
       - "${NGINX_PORT}:${NGINX_PORT}"
     volumes:
       - wordpress:/var/www/html:ro
+      - nginx_logs:/var/log/inception
+      - bans:/var/lib/inception-bans:ro
     networks:
       - inception
     depends_on:
       - wordpress
+      - adminer
+      - static
+    restart: unless-stopped
+
+  # Bonus: web UI to browse and edit the database, reached through nginx at /adminer
+  adminer:
+    build:
+      context: ./requirements/bonus/adminer
+      args:
+        ADMINER_PORT: ${ADMINER_PORT}
+    image: adminer:inception
+    container_name: adminer
+    env_file: .env
+    networks:
+      - inception
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Bonus: bans IPs after repeated failed logins (reads nginx's log, writes ban lists)
+  fail2ban:
+    build:
+      context: ./requirements/bonus/fail2ban
+    image: fail2ban:inception
+    container_name: fail2ban
+    env_file: .env
+    volumes:
+      - nginx_logs:/var/log/inception:ro
+      - bans:/var/lib/inception-bans
+    networks:
+      - inception
+    depends_on:
+      - nginx
+    restart: unless-stopped
+
+  # Bonus: in-memory object cache for WordPress (password from the redis_password secret)
+  redis:
+    build:
+      context: ./requirements/bonus/redis
+      args:
+        REDIS_PORT: ${REDIS_PORT}
+    image: redis:inception
+    container_name: redis
+    env_file: .env
+    secrets:
+      - redis_password
+    networks:
+      - inception
+    healthcheck:
+      # REDISCLI_AUTH keeps the password out of the command line
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$(cat /run/secrets/redis_password) redis-cli -p $${REDIS_PORT} ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  # Bonus: FTPS access to the WordPress files (same volume as wordpress)
+  ftp:
+    build:
+      context: ./requirements/bonus/ftp
+      args:
+        FTP_PORT: ${FTP_PORT}
+        FTP_PASV_MIN: ${FTP_PASV_MIN}
+        FTP_PASV_MAX: ${FTP_PASV_MAX}
+    image: ftp:inception
+    container_name: ftp
+    env_file: .env
+    secrets:
+      - ftp_password
+    ports:
+      - "${FTP_PORT}:${FTP_PORT}"
+      - "${FTP_PASV_MIN}-${FTP_PASV_MAX}:${FTP_PASV_MIN}-${FTP_PASV_MAX}"
+    volumes:
+      - wordpress:/var/www/html
+    networks:
+      - inception
+    depends_on:
+      - wordpress
+    restart: unless-stopped
+
+  # Bonus: one-page static blog (HTML/CSS), reached through nginx at /blog/
+  static:
+    build:
+      context: ./requirements/bonus/static
+      args:
+        STATIC_PORT: ${STATIC_PORT}
+    image: static:inception
+    container_name: static
+    env_file: .env
+    networks:
+      - inception
     restart: unless-stopped
 
 volumes:
@@ -74,6 +172,9 @@ volumes:
       type: none
       o: bind
       device: ${DATA_PATH}/wordpress
+  # Bonus (fail2ban): operational data managed by docker, removed by make fclean
+  nginx_logs:
+  bans:
 
 networks:
   inception:
@@ -86,3 +187,7 @@ secrets:
     file: ../secrets/db_root_password.txt
   credentials:
     file: ../secrets/credentials.txt
+  redis_password:
+    file: ../secrets/redis_password.txt
+  ftp_password:
+    file: ../secrets/ftp_password.txt

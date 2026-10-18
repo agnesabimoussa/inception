@@ -1,7 +1,8 @@
 #!/bin/sh
 set -e
 
-for var in DOMAIN_NAME NGINX_PORT WP_HOST WP_PORT; do
+for var in DOMAIN_NAME NGINX_PORT WP_HOST WP_PORT ADMINER_HOST ADMINER_PORT \
+           STATIC_HOST STATIC_PORT; do
     eval "value=\${$var}"
     [ -n "$value" ] || { echo "[nginx] error: $var is not set" >&2; exit 1; }
 done
@@ -16,7 +17,7 @@ if [ ! -f /etc/nginx/ssl/inception.crt ]; then
 fi
 
 # Fill the template; only the listed variables are replaced
-envsubst '${DOMAIN_NAME} ${NGINX_PORT} ${WP_HOST} ${WP_PORT}' \
+envsubst '${DOMAIN_NAME} ${NGINX_PORT} ${WP_HOST} ${WP_PORT} ${ADMINER_HOST} ${ADMINER_PORT} ${STATIC_HOST} ${STATIC_PORT}' \
     < /etc/nginx/templates/inception.conf.template \
     > /etc/nginx/http.d/inception.conf
 

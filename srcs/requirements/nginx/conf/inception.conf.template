@@ -1,9 +1,23 @@
 # Template: entrypoint.sh replaces the ${...} variables from .env with envsubst.
 # nginx's own variables ($uri, $args...) are left untouched.
+
+# Bonus: $banned is "1" when fail2ban has banned the client's IP
+js_import banlist from /etc/nginx/njs/banlist.js;
+js_set $banned banlist.isBanned;
+
 server {
     listen ${NGINX_PORT} ssl;
     listen [::]:${NGINX_PORT} ssl;
     server_name ${DOMAIN_NAME};
+
+    # Bonus: banned IPs get 403 on every page
+    if ($banned) {
+        return 403;
+    }
+
+    # Logs go to docker logs and to a file that fail2ban reads (shared volume)
+    access_log /dev/stdout;
+    access_log /var/log/inception/access.log;
 
     # TLS only, no plain HTTP server exists
     ssl_certificate     /etc/nginx/ssl/inception.crt;
@@ -27,5 +41,24 @@ server {
         include fastcgi_params;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
         fastcgi_param PATH_INFO $fastcgi_path_info;
+    }
+
+    # Bonus: Adminer runs in its own container. The file only exists there,
+    # so SCRIPT_FILENAME points at its path inside the adminer container.
+    location = /adminer {
+        fastcgi_pass ${ADMINER_HOST}:${ADMINER_PORT};
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME /var/www/adminer/index.php;
+    }
+
+    # Bonus: static blog served by its own container (no PHP).
+    # ^~ keeps the .php rule above from taking these requests;
+    # the trailing / in proxy_pass removes the /blog prefix.
+    location = /blog {
+        return 301 /blog/;
+    }
+    location ^~ /blog/ {
+        proxy_pass http://${STATIC_HOST}:${STATIC_PORT}/;
+        proxy_set_header Host $host;
     }
 }

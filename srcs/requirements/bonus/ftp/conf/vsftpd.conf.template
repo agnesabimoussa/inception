@@ -1,0 +1,47 @@
+# Template: entrypoint.sh replaces the ${...} variables from .env with envsubst.
+
+# Standalone server in the foreground (PID 1)
+listen=YES
+listen_ipv6=NO
+listen_port=${FTP_PORT}
+background=NO
+# vsftpd's seccomp sandbox makes it crash inside containers
+seccomp_sandbox=NO
+pam_service_name=vsftpd
+
+# Only the FTP user from .env, jailed in the WordPress folder (its home)
+anonymous_enable=NO
+local_enable=YES
+write_enable=YES
+local_umask=022
+chroot_local_user=YES
+# The jail is the writable WordPress folder
+allow_writeable_chroot=YES
+secure_chroot_dir=/var/run/vsftpd/empty
+
+# Passive mode: data connections use these published ports.
+# pasv_address is the address clients use to reach the host.
+pasv_enable=YES
+pasv_min_port=${FTP_PASV_MIN}
+pasv_max_port=${FTP_PASV_MAX}
+pasv_address=${FTP_PASV_ADDRESS}
+
+# FTPS: TLS 1.2/1.3 only, required for the login and for file transfers
+ssl_enable=YES
+allow_anon_ssl=NO
+force_local_logins_ssl=YES
+force_local_data_ssl=YES
+ssl_sslv2=NO
+ssl_sslv3=NO
+ssl_tlsv1=NO
+ssl_tlsv11=NO
+ssl_tlsv12=YES
+ssl_tlsv13=YES
+# Some clients (curl, older FileZilla) fail when TLS session reuse is required
+require_ssl_reuse=NO
+rsa_cert_file=/etc/vsftpd/ssl/vsftpd.crt
+rsa_private_key_file=/etc/vsftpd/ssl/vsftpd.key
+
+# Log uploads and downloads to the container output (docker logs)
+xferlog_enable=YES
+vsftpd_log_file=/dev/stdout

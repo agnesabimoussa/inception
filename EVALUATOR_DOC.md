@@ -7,8 +7,8 @@ Reference values used below (from `srcs/.env`):
 | Item | Value |
 |---|---|
 | Domain | `aabi-mou.42.fr` |
-| Containers / services | `nginx`, `wordpress`, `mariadb` |
-| Images | `nginx:inception`, `wordpress:inception`, `mariadb:inception` |
+| Containers / services | `nginx`, `wordpress`, `mariadb` (+ bonus: `adminer`, `fail2ban`, `redis`, `ftp`, `static`) |
+| Images | `nginx:inception`, `wordpress:inception`, `mariadb:inception` (+ bonus: `adminer:inception`, `fail2ban:inception`, `redis:inception`, `ftp:inception`, `static:inception`) |
 | Volumes | `srcs_mariadb`, `srcs_wordpress` |
 | Network | `srcs_inception` |
 | Data on host | `/home/aabi-mou/data` |
@@ -162,6 +162,8 @@ docker exec nginx netstat -tln
 ```
 **Expected:** only nginx has a `ports:` entry (`${NGINX_PORT}`, i.e. 443); nginx listens only on `:443`.
 
+With the bonus, the `ftp` service also has a `ports:` entry (21 and 21100-21110, see §14). FTP needs its own ports, and NGINX is still the only entry point for the website.
+
 ---
 
 ## 5. WordPress + PHP-FPM and its volume
@@ -286,3 +288,160 @@ Optional: `make down && make` gives the same result.
 head -1 README.md; ls README.md USER_DOC.md DEV_DOC.md
 ```
 **Expected:** the first line is the italic sentence *This project has been created as part of the 42 curriculum by aabi-mou.* All three files exist. The README contains Description, Instructions and Resources sections, an AI usage description, and the four comparisons (VMs vs Docker, Secrets vs Environment Variables, Docker Network vs Host Network, Docker Volumes vs Bind Mounts).
+
+---
+
+## 11. Bonus: Adminer
+
+### 11.1 Own Dockerfile and container
+```sh
+ls srcs/requirements/bonus/adminer
+head -1 srcs/requirements/bonus/adminer/Dockerfile
+make ps
+docker exec adminer ps -o pid,args | head -2
+docker exec adminer which nginx; echo "exit code: $?"
+```
+**Expected:** the folder has a `Dockerfile`, `conf/` and `tools/`; the base image is `alpine:3.23`; `adminer` is `Up`; PID 1 is `php-fpm`; no nginx in the container (exit code `1`).
+
+### 11.2 Reached through NGINX only
+```sh
+grep -n -A1 'ports:' srcs/docker-compose.yml
+curl -k -s -o /dev/null -w '%{http_code}\n' https://aabi-mou.42.fr/adminer
+```
+**Expected:** nginx is still the only service with `ports:`; the curl prints `200`.
+
+### 11.3 Functional test
+1. Open `https://aabi-mou.42.fr/adminer`. Log in with System `MySQL / MariaDB`, Server `mariadb`, the username `MYSQL_USER` from `srcs/.env` and the password from `secrets/db_password.txt`.
+   **Expected:** the `wordpress` database and its `wp_*` tables are listed.
+2. Open `wp_options`, edit the `blogname` row, save, then reload `https://aabi-mou.42.fr`.
+   **Expected:** the site title has changed.
+
+---
+
+## 12. Bonus: Fail2ban (security service)
+
+Why this service: it adds a security layer against brute-force attacks on the two login pages (WordPress and Adminer).
+
+### 12.1 Own Dockerfile and container
+```sh
+ls srcs/requirements/bonus/fail2ban
+make ps
+docker exec fail2ban ps -o pid,args | head -2
+docker exec fail2ban fail2ban-client status
+```
+**Expected:** a `Dockerfile`, `conf/` and `tools/`; `fail2ban` is `Up`; PID 1 is `fail2ban-server -f -x`; the jail list is `adminer, wordpress`.
+
+### 12.2 Ban after failed logins
+```sh
+for i in 1 2 3 4 5 6; do
+  curl -k -s -o /dev/null -w '%{http_code}\n' -d 'log=x&pwd=wrong' https://aabi-mou.42.fr/wp-login.php
+done
+sleep 2; curl -k -s -o /dev/null -w '%{http_code}\n' https://aabi-mou.42.fr
+docker exec fail2ban fail2ban-client status wordpress
+```
+**Expected:** the first attempts print `200`; after the ban, the site prints `403`. The status lists one banned IP: the Docker gateway (e.g. `172.18.0.1`), because local requests reach NGINX through Docker's port proxy.
+
+### 12.3 Unban
+```sh
+docker exec fail2ban fail2ban-client set wordpress unbanip <ip>
+curl -k -s -o /dev/null -w '%{http_code}\n' https://aabi-mou.42.fr
+```
+**Expected:** `200` again. Without `unbanip`, the ban expires after 10 minutes.
+
+The same test works with 5 wrong logins at `https://aabi-mou.42.fr/adminer` (jail `adminer`).
+
+---
+
+## 13. Bonus: Redis cache for WordPress
+
+### 13.1 Own Dockerfile and container
+```sh
+ls srcs/requirements/bonus/redis
+make ps
+docker exec redis ps -o pid,user,args | head -2
+```
+**Expected:** a `Dockerfile`, `conf/` and `tools/`; `redis` is `Up (healthy)`; PID 1 is `redis-server`, running as the `redis` user.
+
+### 13.2 Password required
+```sh
+docker exec redis redis-cli ping
+docker exec -e REDISCLI_AUTH="$(cat secrets/redis_password.txt)" redis redis-cli ping
+```
+**Expected:** first `NOAUTH Authentication required`, then `PONG`.
+
+### 13.3 WordPress uses the cache
+```sh
+docker exec wordpress wp redis status --allow-root | grep -E 'Status|Client'
+docker exec -e REDISCLI_AUTH="$(cat secrets/redis_password.txt)" redis redis-cli dbsize
+curl -k -s -o /dev/null https://aabi-mou.42.fr
+docker exec -e REDISCLI_AUTH="$(cat secrets/redis_password.txt)" redis redis-cli dbsize
+```
+**Expected:** `Status: Connected`, `Client: PhpRedis`; the number of keys is greater than 0 and does not go down after visiting the site.
+
+Live view: run `docker exec -it -e REDISCLI_AUTH="$(cat secrets/redis_password.txt)" redis redis-cli monitor` and reload the site in a browser. Commands such as `GET` and `SET` scroll by (`Ctrl+C` to quit).
+
+---
+
+## 14. Bonus: FTP server (FTPS) on the WordPress volume
+
+Reference values: user `FTP_USER` from `srcs/.env`, password in `secrets/ftp_password.txt`.
+```sh
+FTP_USER=$(grep '^FTP_USER=' srcs/.env | cut -d= -f2); FTP_PW=$(cat secrets/ftp_password.txt)
+```
+
+### 14.1 Own Dockerfile and container
+```sh
+ls srcs/requirements/bonus/ftp
+make ps
+docker exec ftp ps -o pid,args | head -2
+grep -n -A3 '  ftp:' srcs/docker-compose.yml | head -1; grep -n 'wordpress:/var/www/html' srcs/docker-compose.yml
+```
+**Expected:** a `Dockerfile`, `conf/` and `tools/`; `ftp` is `Up`, with ports `21` and `21100-21110` published; PID 1 is `vsftpd`; the `ftp` service mounts the same `wordpress` volume as the wordpress container.
+
+### 14.2 Login without TLS is refused
+```sh
+curl -s ftp://aabi-mou.42.fr/ --user "$FTP_USER:$FTP_PW"; echo "exit code: $?"
+```
+**Expected:** a non-zero exit code. The server answers `530 Non-anonymous sessions must use encryption`; use `curl -v` to see it.
+
+### 14.3 List and upload with TLS
+```sh
+curl -s --ssl-reqd -k --user "$FTP_USER:$FTP_PW" ftp://aabi-mou.42.fr/
+echo "uploaded through FTP" > /tmp/ftp-test.txt
+curl -s --ssl-reqd -k --user "$FTP_USER:$FTP_PW" -T /tmp/ftp-test.txt ftp://aabi-mou.42.fr/
+docker exec wordpress ls -l /var/www/html/ftp-test.txt
+curl -k https://aabi-mou.42.fr/ftp-test.txt
+```
+**Expected:** the listing shows the WordPress files (`wp-config.php`, `wp-content`, ...); the uploaded file appears in the wordpress container, owned by `nobody`, and NGINX serves it.
+
+Clean up: `curl -s --ssl-reqd -k --user "$FTP_USER:$FTP_PW" ftp://aabi-mou.42.fr/ -Q 'DELE ftp-test.txt' -o /dev/null`.
+
+### 14.4 Jailed in the WordPress folder
+Connect with FileZilla (host `aabi-mou.42.fr`, port `21`, encryption "Require explicit FTP over TLS"; accept the certificate) and try to go above `/`.
+**Expected:** `/` is the WordPress folder; going up is not possible.
+
+---
+
+## 15. Bonus: Static website (no PHP)
+
+### 15.1 Own Dockerfile and container, no PHP
+```sh
+ls srcs/requirements/bonus/static srcs/requirements/bonus/static/site
+make ps
+docker exec static ps -o pid,user,args | head -2
+docker exec static which php; echo "exit code: $?"
+docker exec static find /var/www/static -type f
+```
+**Expected:** a `Dockerfile`, `site/` and `tools/`; `static` is `Up`; PID 1 is `busybox-extras httpd`, running as `nobody`; there is no PHP (exit code `1`); the site is only `index.html` and `style.css`.
+
+### 15.2 Served through NGINX
+```sh
+curl -k -s -o /dev/null -w '%{http_code} %{redirect_url}\n' https://aabi-mou.42.fr/blog
+curl -k -s https://aabi-mou.42.fr/blog/ | grep -o '<title>.*</title>'
+curl -k -s -o /dev/null -w '%{http_code}\n' https://aabi-mou.42.fr/blog/style.css
+```
+**Expected:** `301 https://aabi-mou.42.fr/blog/`, then `<title>Byte Brief: tech news in a nutshell</title>`, then `200`.
+
+### 15.3 In a browser
+Open `https://aabi-mou.42.fr/blog/`.
+**Expected:** the styled one-page blog with six posts; the topic links jump to their posts; the footer link goes back to the WordPress site at `/`.

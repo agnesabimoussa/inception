@@ -1,0 +1,21 @@
+# 5 failed logins within 10 minutes = banned for 10 minutes
+[DEFAULT]
+maxretry = 5
+findtime = 10m
+bantime  = 10m
+backend  = polling
+# The docker gateway is not ignored on purpose: local requests come from it
+ignoreip = 127.0.0.1/8
+
+# nginx writes this file into the shared nginx_logs volume
+[wordpress]
+enabled = true
+filter  = inception-wordpress
+logpath = /var/log/inception/access.log
+action  = inception-banlist[name=wordpress]
+
+[adminer]
+enabled = true
+filter  = inception-adminer
+logpath = /var/log/inception/access.log
+action  = inception-banlist[name=adminer]

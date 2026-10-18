@@ -1,0 +1,162 @@
+/* Byte Brief: one-page static blog (bonus) */
+
+:root {
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --text: #1f2328;
+    --muted: #5f6b7a;
+    --border: #e1e4e8;
+    --accent: #2563eb;
+}
+
+/* Dark mode follows the system setting */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #0f1115;
+        --card: #181b21;
+        --text: #e6e8eb;
+        --muted: #9aa4b2;
+        --border: #2a2f37;
+        --accent: #60a5fa;
+    }
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0 auto;
+    max-width: 46rem;
+    padding: 2rem 1rem;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+}
+
+a {
+    color: var(--accent);
+}
+
+/* Header */
+.site-header {
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.logo {
+    margin: 0;
+    font-size: 2.5rem;
+    letter-spacing: -0.03em;
+}
+
+.logo span {
+    color: var(--accent);
+}
+
+.tagline {
+    margin: 0.25rem 0;
+    color: var(--muted);
+}
+
+.notice {
+    display: inline-block;
+    margin: 0.75rem 0 1.25rem;
+    padding: 0.25rem 0.75rem;
+    border: 1px dashed var(--border);
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.tags {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+/* Tag pills */
+.tag {
+    display: inline-block;
+    padding: 0.1rem 0.65rem;
+    border-radius: 999px;
+    color: #ffffff;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.tag-roundup     { background: #6b7280; }
+.tag-ai          { background: #7c3aed; }
+.tag-hardware    { background: #ea580c; }
+.tag-open-source { background: #16a34a; }
+.tag-security    { background: #dc2626; }
+.tag-dev         { background: #0891b2; }
+
+/* Posts */
+.post {
+    margin-bottom: 1.25rem;
+    padding: 1.25rem 1.5rem;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--card);
+    scroll-margin-top: 1rem;
+}
+
+.post.featured {
+    border-left: 4px solid var(--accent);
+}
+
+.post h2 {
+    margin: 0.4rem 0 0.6rem;
+    font-size: 1.3rem;
+    line-height: 1.3;
+}
+
+.post p {
+    margin: 0.5rem 0;
+}
+
+.meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+code {
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+    background: var(--border);
+    font-size: 0.9em;
+}
+
+/* Footer */
+.site-footer {
+    margin-top: 2.5rem;
+    color: var(--muted);
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.site-footer p {
+    margin: 0.25rem 0;
+}
+
+/* Small screens */
+@media (max-width: 30rem) {
+    .logo {
+        font-size: 2rem;
+    }
+
+    .post {
+        padding: 1rem;
+    }
+}

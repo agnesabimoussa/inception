@@ -19,6 +19,11 @@ Inception sets up a small web infrastructure with Docker Compose inside a virtua
 - **NGINX**: the only entry point, HTTPS on port 443 with TLSv1.2/TLSv1.3 only.
 - **WordPress + PHP-FPM**: runs the PHP code; NGINX forwards PHP requests to it over FastCGI on port 9000.
 - **MariaDB**: stores the WordPress database; WordPress connects to it on port 3306.
+- **Adminer** (bonus): a web interface to view and edit the database tables, at `https://aabi-mou.42.fr/adminer`. It runs its own PHP-FPM, and NGINX forwards `/adminer` to it over FastCGI on port 9001.
+- **Fail2ban** (bonus, security): reads NGINX's access log and bans an IP for 10 minutes after 5 failed logins on WordPress or Adminer within 10 minutes. Banned IPs are written to a shared volume, and NGINX answers them with 403.
+- **Redis** (bonus): an in-memory object cache for the WordPress site. Results of repeated database queries are kept in Redis instead of being fetched from MariaDB on every page view. WordPress connects to it on port 6379 with a password stored as a Docker secret.
+- **FTP server** (bonus): vsftpd gives access to the WordPress files (the `wordpress` volume) with an FTP client. FTPS only: TLS is required for the login and the transfers. It uses port 21, plus 21100-21110 for passive data connections.
+- **Static website** (bonus): *Byte Brief*, a one-page tech blog in plain HTML and CSS (no PHP), at `https://aabi-mou.42.fr/blog/`. BusyBox `httpd` serves it in its own container, and NGINX forwards `/blog/` to it.
 
 The containers communicate over a dedicated bridge network, restart automatically after a crash, and keep their data in two named volumes stored in `/home/aabi-mou/data` on the host.
 
@@ -47,7 +52,13 @@ Project sources:
     └── requirements/
         ├── mariadb/         # Dockerfile, conf/zz-inception.cnf, tools/init.sh
         ├── wordpress/       # Dockerfile, conf/www.conf, conf/php.ini, tools/setup.sh
-        └── nginx/           # Dockerfile, conf/inception.conf.template, tools/entrypoint.sh
+        ├── nginx/           # Dockerfile, conf/inception.conf.template, conf/banlist.js, tools/entrypoint.sh
+        └── bonus/
+            ├── adminer/     # Dockerfile, conf/www.conf, tools/entrypoint.sh
+            ├── fail2ban/    # Dockerfile, conf/jail.local, conf/filter.d/, conf/action.d/, tools/entrypoint.sh
+            ├── redis/       # Dockerfile, conf/redis.conf, tools/entrypoint.sh
+            ├── ftp/         # Dockerfile, conf/vsftpd.conf.template, conf/pam-vsftpd, tools/entrypoint.sh
+            └── static/      # Dockerfile, site/index.html, site/style.css, tools/entrypoint.sh
 ```
 
 
@@ -94,6 +105,8 @@ A **bind mount** maps a specific path on the host (e.g. `/home/user/data`) strai
 | `db_password.txt` | Password of `MYSQL_USER`, value only |
 | `db_root_password.txt` | MariaDB root password, value only |
 | `credentials.txt` | `WP_ADMIN_PASSWORD=...` and `WP_USER_PASSWORD=...`, one per line |
+| `redis_password.txt` | Redis password (bonus), value only, e.g. `openssl rand -hex 16` |
+| `ftp_password.txt` | Password of `FTP_USER` (bonus), value only, e.g. `openssl rand -hex 16` |
 
 Avoid `'` and `\` in passwords: they are inserted into SQL statements.
 
@@ -132,3 +145,9 @@ AI was used in this project for learning purposes only.
 - NGINX, configuring HTTPS servers: https://nginx.org/en/docs/http/configuring_https_servers.html
 - PHP-FPM configuration: https://www.php.net/manual/en/install.fpm.configuration.php
 - WP-CLI commands: https://developer.wordpress.org/cli/commands/
+- Adminer: https://www.adminer.org/ and releases: https://github.com/vrana/adminer/releases
+- Fail2ban: https://github.com/fail2ban/fail2ban/wiki
+- NGINX njs scripting: https://nginx.org/en/docs/njs/
+- Redis Object Cache plugin: https://wordpress.org/plugins/redis-cache/
+- Redis configuration: https://redis.io/docs/latest/operate/oss_and_stack/management/config/
+- vsftpd configuration (`man vsftpd.conf`): https://security.appspot.com/vsftpd/vsftpd_conf.html
