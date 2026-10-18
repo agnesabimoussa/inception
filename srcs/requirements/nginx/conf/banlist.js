@@ -10,7 +10,9 @@ function isBanned(r) {
     } catch (e) {
         return '';   // no ban folder: nothing is banned
     }
-    for (const f of files) {
+    // Classic loop: Alpine's njs does not support for...of
+    for (let i = 0; i < files.length; i++) {
+        const f = files[i];
         if (!f.endsWith('.list'))
             continue;
         const ips = fs.readFileSync(DIR + '/' + f, 'utf8').split('\n');

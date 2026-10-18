@@ -52,9 +52,9 @@ fi
 
 # Bonus: Redis object cache. Runs on every start (each step is idempotent),
 # so an existing installation is upgraded too.
-wp config set WP_REDIS_HOST "${REDIS_HOST}" --allow-root
-wp config set WP_REDIS_PORT "${REDIS_PORT}" --raw --allow-root
-wp config set WP_REDIS_PASSWORD "${REDIS_PASSWORD}" --allow-root
+wp config set WP_REDIS_HOST "${REDIS_HOST}" --allow-root --quiet
+wp config set WP_REDIS_PORT "${REDIS_PORT}" --raw --allow-root --quiet
+wp config set WP_REDIS_PASSWORD "${REDIS_PASSWORD}" --allow-root --quiet
 wp plugin is-installed redis-cache --allow-root \
     || wp plugin install redis-cache --allow-root
 wp plugin is-active redis-cache --allow-root \

@@ -42,6 +42,7 @@ require_ssl_reuse=NO
 rsa_cert_file=/etc/vsftpd/ssl/vsftpd.crt
 rsa_private_key_file=/etc/vsftpd/ssl/vsftpd.key
 
-# Log uploads and downloads to the container output (docker logs)
+# Log uploads and downloads. Session processes cannot open /dev/stdout,
+# so the log is a file: docker exec ftp cat /var/log/vsftpd.log
 xferlog_enable=YES
-vsftpd_log_file=/dev/stdout
+vsftpd_log_file=/var/log/vsftpd.log

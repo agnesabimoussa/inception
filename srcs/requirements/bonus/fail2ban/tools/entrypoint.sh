@@ -1,8 +1,12 @@
 #!/bin/sh
 set -e
 
-# fail2ban refuses to start a jail whose log file does not exist yet
-touch /var/log/inception/access.log
+# nginx creates the log in the shared volume (read-only here). fail2ban refuses
+# to start a jail without its log, so exit and let the restart policy retry.
+[ -f /var/log/inception/access.log ] || {
+    echo "[fail2ban] waiting for nginx to create /var/log/inception/access.log" >&2
+    exit 1
+}
 
 # Replace the shell so fail2ban becomes PID 1; -f keeps it in the foreground,
 # -x removes a socket left behind by a crash
